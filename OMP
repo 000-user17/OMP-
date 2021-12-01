@@ -1,0 +1,62 @@
+import numpy as np
+import math
+import time
+import torch
+import sys
+sys.version
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+torch.cuda.is_available()
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# Assuming that we are on a CUDA machine, this should print a CUDA device:
+print(device)
+
+#omg算法代码
+def cs_omg(M,N,K):   #L为迭代次数，即稀疏率，M,N为矩阵A的行列数目
+    A = np.random.randn(M,N)
+    x = np.random.randn(N,1)
+    X = np.zeros((N,1))
+    index = np.random.permutation(N)     #随机打乱数组
+    for i in range(N-K):
+        x[index[i]]=0                      #将信号向量x的随机项置0
+    y=np.dot(A,x)
+    residual = y  #残差初始化 
+    print("初始的信号:"+'\n'+str(x))
+    index=np.zeros((N),dtype=int)          #重新将index数组作为Ω集合，存放选择过的原子
+    for i in range(N):
+        index[i]= -1
+    for j in range(K):                     #迭代
+        product = np.fabs(np.dot(A.T,residual)) #fabs返回绝对值
+        pos = np.argmax(product)          #寻找字典与残差向量最强的相关列,返回一个numpy数组中最大值的索引值
+   
+        index[pos]=1                         #将原子序号返回给index
+        my = np.linalg.pinv(A[:,index>=0])  #最小二乘，求伪逆，pinv(x)=(x^Tx)^-1*x
+        a = np.dot(my,y)    #my其实为为xk
+        residual = y-np.dot(A[:,index>=0],a)
+
+    X[index>=0]=a   #如果index[i]>=0,则将a的顺序行放到X的第i行中
+    print('------------------------------------------------------------------')
+    print(index)   #返回被选中的原子所在的索引
+    return X,x   
+  
+#第一次数据测试      
+beginTime = time.perf_counter()  #第一组数据计算
+X,x=cs_omg(50,100,8)
+print("OMP算法得到的信号:"+ "\n"+str(X))
+endTime = time.perf_counter()
+print("cpu时间："+str(endTime-beginTime)+"秒")
+#作图
+import matplotlib.pyplot as plt
+plt.figure(figsize=(10,10))
+plt.title("the comparasion of X and x")
+plt.plot(x,'b')
+plt.plot(X,"r",alpha=0.5,marker='o')  #alpha 必须再maker之前
+plt.legend(["original signal x","recovered signal X"])
+plt.show()
+
+#第二次数据测试
+beginTime = time.perf_counter()  #第二组数据计算
+X=cs_omg(15000,23000,1000)
+print("OMP算法得到的信号:"+ "\n"+str(X))
+endTime = time.perf_counter()
+print("cpu时间："+str(endTime-beginTime)+"秒")
